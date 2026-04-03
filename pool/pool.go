@@ -31,3 +31,22 @@ func (p *Pool) Healthy(ctx context.Context) bool {
 func (p *Pool) Close() {
 	p.db.Close()
 }
+
+// Metrics holds a snapshot of pool statistics.
+type Metrics struct {
+	AcquiredConns int32
+	IdleConns     int32
+	TotalConns    int32
+	MaxConns      int32
+}
+
+// Metrics returns a snapshot of the current pool statistics.
+func (p *Pool) Metrics() Metrics {
+	s := p.db.Stat()
+	return Metrics{
+		AcquiredConns: s.AcquiredConns(),
+		IdleConns:     s.IdleConns(),
+		TotalConns:    s.TotalConns(),
+		MaxConns:      s.MaxConns(),
+	}
+}
