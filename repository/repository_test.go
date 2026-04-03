@@ -120,8 +120,16 @@ func TestRepositoryCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create table: %v", err)
 	}
+	if _, err := pool.Exec(ctx, `TRUNCATE test_items`); err != nil {
+		t.Fatalf("truncate table: %v", err)
+	}
 	t.Cleanup(func() {
-		_, _ = pool.Exec(context.Background(), `DROP TABLE IF EXISTS test_items`)
+		conn, err := pgxpool.New(context.Background(), "postgresql://postgres@localhost:5432/workbench")
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, _ = conn.Exec(context.Background(), `DROP TABLE IF EXISTS test_items`)
 	})
 
 	repo := &testItemRepo{pool: pool}
