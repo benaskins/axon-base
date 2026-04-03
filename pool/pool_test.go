@@ -8,24 +8,50 @@ import (
 	"github.com/benaskins/axon-base/pool"
 )
 
-const testDSN = "postgres://postgres@localhost:5432/workbench"
+const testDSN = "postgres://aurelia:aurelia@localhost:5432/workbench?sslmode=disable"
 
 func TestNewPool_HealthCheck(t *testing.T) {
 	ctx := context.Background()
-	p, err := pool.NewPool(ctx, testDSN)
+	p, err := pool.NewPool(ctx, testDSN, "pool_test")
 	if err != nil {
 		t.Skip("postgres unavailable:", err)
 	}
 	defer p.Close()
 
 	if !p.Healthy(ctx) {
-		t.Skip("postgres unavailable")
+		t.Fatal("expected pool to be healthy")
+	}
+}
+
+func TestPool_StdDB(t *testing.T) {
+	ctx := context.Background()
+	p, err := pool.NewPool(ctx, testDSN, "pool_test")
+	if err != nil {
+		t.Skip("postgres unavailable:", err)
+	}
+	defer p.Close()
+
+	db, err := p.StdDB()
+	if err != nil {
+		t.Fatalf("StdDB: %v", err)
+	}
+	if err := db.Ping(); err != nil {
+		t.Fatalf("StdDB ping: %v", err)
+	}
+
+	// Should return the same handle on second call.
+	db2, err := p.StdDB()
+	if err != nil {
+		t.Fatalf("StdDB second call: %v", err)
+	}
+	if db != db2 {
+		t.Fatal("expected StdDB to return cached handle")
 	}
 }
 
 func TestPool_Close(t *testing.T) {
 	ctx := context.Background()
-	p, err := pool.NewPool(ctx, testDSN)
+	p, err := pool.NewPool(ctx, testDSN, "pool_test")
 	if err != nil {
 		t.Skip("postgres unavailable:", err)
 	}
@@ -39,13 +65,12 @@ func TestPool_Close(t *testing.T) {
 
 func TestPool_Metrics(t *testing.T) {
 	ctx := context.Background()
-	p, err := pool.NewPool(ctx, testDSN)
+	p, err := pool.NewPool(ctx, testDSN, "pool_test")
 	if err != nil {
 		t.Skip("postgres unavailable:", err)
 	}
 	defer p.Close()
 
-	// Trigger a connection by pinging.
 	if !p.Healthy(ctx) {
 		t.Skip("postgres not healthy")
 	}
@@ -54,21 +79,15 @@ func TestPool_Metrics(t *testing.T) {
 	if m.Max == 0 {
 		t.Fatal("expected Max > 0")
 	}
-	// WaitTime must be a valid duration (zero is fine for an idle pool).
-	_ = m.WaitTime
 }
 
 func TestPool_MetricsHealthJSON(t *testing.T) {
 	ctx := context.Background()
-	p, err := pool.NewPool(ctx, testDSN)
+	p, err := pool.NewPool(ctx, testDSN, "pool_test")
 	if err != nil {
 		t.Skip("postgres unavailable:", err)
 	}
 	defer p.Close()
-
-	if !p.Healthy(ctx) {
-		t.Skip("postgres not healthy")
-	}
 
 	data, err := p.Metrics().HealthJSON()
 	if err != nil {

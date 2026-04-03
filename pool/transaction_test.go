@@ -13,7 +13,7 @@ import (
 
 func TestWithTransaction_Commit(t *testing.T) {
 	ctx := context.Background()
-	p, err := pool.NewPool(ctx, testDSN)
+	p, err := pool.NewPool(ctx, testDSN, "pool_test")
 	if err != nil {
 		t.Skip("postgres unavailable:", err)
 	}
@@ -38,7 +38,7 @@ func TestWithTransaction_Commit(t *testing.T) {
 
 func TestWithTransaction_Rollback(t *testing.T) {
 	ctx := context.Background()
-	p, err := pool.NewPool(ctx, testDSN)
+	p, err := pool.NewPool(ctx, testDSN, "pool_test")
 	if err != nil {
 		t.Skip("postgres unavailable:", err)
 	}
@@ -62,7 +62,7 @@ func TestWithTransaction_Rollback(t *testing.T) {
 
 func TestWithTransaction_ErrorWrapped(t *testing.T) {
 	ctx := context.Background()
-	p, err := pool.NewPool(ctx, testDSN)
+	p, err := pool.NewPool(ctx, testDSN, "pool_test")
 	if err != nil {
 		t.Skip("postgres unavailable:", err)
 	}

@@ -11,7 +11,7 @@ import (
 
 func ExampleNewPool() {
 	ctx := context.Background()
-	p, err := pool.NewPool(ctx, "postgres://postgres@localhost:5432/mydb")
+	p, err := pool.NewPool(ctx, "postgres://postgres@localhost:5432/mydb", "public")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -24,7 +24,7 @@ func ExampleNewPool() {
 
 func ExamplePool_WithTransaction() {
 	ctx := context.Background()
-	p, err := pool.NewPool(ctx, "postgres://postgres@localhost:5432/mydb")
+	p, err := pool.NewPool(ctx, "postgres://postgres@localhost:5432/mydb", "public")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func ExamplePool_WithTransaction() {
 
 func ExamplePool_Metrics() {
 	ctx := context.Background()
-	p, err := pool.NewPool(ctx, "postgres://postgres@localhost:5432/mydb")
+	p, err := pool.NewPool(ctx, "postgres://postgres@localhost:5432/mydb", "public")
 	if err != nil {
 		log.Fatal(err)
 	}

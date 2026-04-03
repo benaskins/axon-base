@@ -12,7 +12,7 @@ import (
 //go:embed testdata/migrations
 var testMigrations embed.FS
 
-const testDSN = "postgres://postgres@localhost:5432/workbench?sslmode=disable"
+const testDSN = "postgres://aurelia:aurelia@localhost:5432/workbench?sslmode=disable&options=-csearch_path%3Daxon_base_test"
 
 func openDB(t *testing.T) *sql.DB {
 	t.Helper()
@@ -24,6 +24,10 @@ func openDB(t *testing.T) *sql.DB {
 		db.Close()
 		t.Skip("postgres unavailable:", err)
 	}
+	if _, err := db.Exec("CREATE SCHEMA IF NOT EXISTS axon_base_test"); err != nil {
+		db.Close()
+		t.Skip("cannot create test schema:", err)
+	}
 	return db
 }
 
@@ -31,7 +35,7 @@ func tableExists(t *testing.T, db *sql.DB, name string) bool {
 	t.Helper()
 	var exists bool
 	err := db.QueryRow(
-		"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = $1)",
+		"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'axon_base_test' AND table_name = $1)",
 		name,
 	).Scan(&exists)
 	if err != nil {
@@ -44,23 +48,22 @@ func TestMigrate_UpAndDown(t *testing.T) {
 	db := openDB(t)
 	defer db.Close()
 
-	// Ensure clean state.
-	if _, err := db.Exec("DROP TABLE IF EXISTS test_items, schema_migrations"); err != nil {
+	if _, err := db.Exec("DROP TABLE IF EXISTS test_items"); err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
 
-	if err := migration.Migrate(db, testMigrations, "testdata/migrations"); err != nil {
-		t.Fatalf("Migrate up: %v", err)
+	if err := migration.Run(db, testMigrations, "testdata/migrations"); err != nil {
+		t.Fatalf("Run: %v", err)
 	}
 	if !tableExists(t, db, "test_items") {
-		t.Fatal("expected test_items table to exist after up migration")
+		t.Fatal("expected test_items table to exist after migration")
 	}
 
 	if err := migration.Down(db, testMigrations, "testdata/migrations"); err != nil {
-		t.Fatalf("Migrate down: %v", err)
+		t.Fatalf("Down: %v", err)
 	}
 	if tableExists(t, db, "test_items") {
-		t.Fatal("expected test_items table to be dropped after down migration")
+		t.Fatal("expected test_items table to be dropped after down")
 	}
 }
 
@@ -68,21 +71,18 @@ func TestMigrate_Idempotent(t *testing.T) {
 	db := openDB(t)
 	defer db.Close()
 
-	if _, err := db.Exec("DROP TABLE IF EXISTS test_items, schema_migrations"); err != nil {
+	if _, err := db.Exec("DROP TABLE IF EXISTS test_items"); err != nil {
 		t.Fatalf("cleanup: %v", err)
 	}
 
-	if err := migration.Migrate(db, testMigrations, "testdata/migrations"); err != nil {
-		t.Fatalf("first Migrate: %v", err)
+	if err := migration.Run(db, testMigrations, "testdata/migrations"); err != nil {
+		t.Fatalf("first Run: %v", err)
 	}
-	// Second call should be a no-op (ErrNoChange is swallowed).
-	if err := migration.Migrate(db, testMigrations, "testdata/migrations"); err != nil {
-		t.Fatalf("second Migrate (idempotent): %v", err)
+	if err := migration.Run(db, testMigrations, "testdata/migrations"); err != nil {
+		t.Fatalf("second Run (idempotent): %v", err)
 	}
 
-	// Cleanup.
 	if err := migration.Down(db, testMigrations, "testdata/migrations"); err != nil {
 		t.Fatalf("cleanup Down: %v", err)
 	}
 }
-

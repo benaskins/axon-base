@@ -23,7 +23,7 @@ import (
 //go:embed testdata/migrations
 var testMigrations embed.FS
 
-const testDSN = "postgres://postgres@localhost:5432/workbench?sslmode=disable"
+const testDSN = "postgres://aurelia:aurelia@localhost:5432/workbench?sslmode=disable&options=-csearch_path%3Daxon_base_integ"
 
 // integItem is the entity used across all integration sub-tests.
 type integItem struct {
@@ -100,6 +100,10 @@ func openDB(t *testing.T) *sql.DB {
 		db.Close()
 		t.Skip("postgres unavailable:", err)
 	}
+	if _, err := db.Exec("CREATE SCHEMA IF NOT EXISTS axon_base_integ"); err != nil {
+		db.Close()
+		t.Skip("cannot create test schema:", err)
+	}
 	return db
 }
 
@@ -122,7 +126,7 @@ func openRawPool(t *testing.T) *pgxpool.Pool {
 func openPool(t *testing.T) *pool.Pool {
 	t.Helper()
 	ctx := context.Background()
-	p, err := pool.NewPool(ctx, testDSN)
+	p, err := pool.NewPool(ctx, testDSN, "axon_base_integ")
 	if err != nil {
 		t.Skip("postgres unavailable:", err)
 	}
@@ -143,13 +147,13 @@ func TestIntegration(t *testing.T) {
 		db.Close()
 		t.Fatalf("pre-test cleanup: %v", err)
 	}
-	if err := migration.Migrate(db, testMigrations, "testdata/migrations"); err != nil {
+	if err := migration.Run(db, testMigrations, "testdata/migrations"); err != nil {
 		db.Close()
 		t.Fatalf("migrate up: %v", err)
 	}
 	t.Cleanup(func() {
 		defer db.Close()
-		if err := migration.Down(db, testMigrations, "testdata/migrations"); err != nil {
+		if err := migration.Down(db, testMigrations, "testdata/migrations"); err != nil { //nolint
 			t.Errorf("migrate down: %v", err)
 		}
 	})
